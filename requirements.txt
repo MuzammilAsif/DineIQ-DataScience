@@ -4,3 +4,12 @@ faker
 pyarrow
 pyspark
 pytest
+matplotlib
+nbformat
+nbconvert
+ipykernel
+pyyaml
+scikit-learn
+streamlit
+plotly
+werkzeug
