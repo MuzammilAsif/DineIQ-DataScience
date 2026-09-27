@@ -4,7 +4,7 @@ This document declares the use of AI tooling during the development of DineIQ An
 
 **Tool used:** Claude (Anthropic's Claude Code CLI), used as the primary AI development environment for the project.
 
-**How it was used, overall:** AI was used to implement, test, debug, and refine the selected development stages described below. The AI performed the implementation work for these stages based on the project's requirements and specifications. The resulting work was reviewed, run, and verified by me before being considered complete.
+**How it was used, overall:** AI was used to implement, test, debug, and refine the selected development stages described below. The AI performed the implementation work for these stages based on the project's requirements and specifications. The resulting work was reviewed, run, and verified by us before being considered complete.
 
 ## 1. Menu profitability analysis and performance classification
 
@@ -14,7 +14,7 @@ This document declares the use of AI tooling during the development of DineIQ An
 
 **Files/modules affected:** `spark_jobs/05_menu_classification.py`, `config/classification_thresholds.yaml`, `parquet_data/menu_classification/`
 
-**Review and verification:** I reviewed the resulting classification distribution against a scatter plot of demand percentile versus profitability percentile to confirm that the categories separated according to the intended logic.
+**Review and verification:** We reviewed the resulting classification distribution against a scatter plot of demand percentile versus profitability percentile to confirm that the categories separated according to the intended logic.
 
 **Testing completed:** Dedicated tests for each of the ten tricky cases, zero-sales and insufficient-history edge cases, and a test confirming that a config threshold change changes the output.
 
@@ -28,7 +28,7 @@ This document declares the use of AI tooling during the development of DineIQ An
 
 **Files/modules affected:** `python_pipeline/`, `models/python/`, `reports/dual_pipeline_comparison_report.md`, `reports/dual_pipeline_comparison.csv`
 
-**Review and verification:** I confirmed that the Python pipeline did not import from or read the Spark pipeline's derived feature output, ensuring that the comparison remained independent.
+**Review and verification:** We confirmed that the Python pipeline did not import from or read the Spark pipeline's derived feature output, ensuring that the comparison remained independent.
 
 **Testing completed:** Independence check and agreement-percentage calculation check against a hand-built example.
 
@@ -42,7 +42,7 @@ This document declares the use of AI tooling during the development of DineIQ An
 
 **Files/modules affected:** `spark_jobs/15_demand_forecasting.py`, `config/forecast_config.yaml`, `parquet_data/demand_forecast/`
 
-**Review and verification:** I verified that the train/test split was chronological, with the maximum training date preceding the minimum test date, and that lag features did not leak information across the split.
+**Review and verification:** We verified that the train/test split was chronological, with the maximum training date preceding the minimum test date, and that lag features did not leak information across the split.
 
 **Testing completed:** Chronological-split test, lag-feature leakage test, and metric calculation test.
 
@@ -56,7 +56,7 @@ This document declares the use of AI tooling during the development of DineIQ An
 
 **Files/modules affected:** `src/`, `.streamlit/config.toml`, `database/`
 
-**Review and verification:** I logged into the application under each seeded role and manually verified role-gated page access. I also checked all dashboard pages to confirm that they loaded real data.
+**Review and verification:** We logged into the application under each seeded role and manually verified role-gated page access. We also checked all dashboard pages to confirm that they loaded real data.
 
 **Testing completed:** Login/authentication tests, role-gating test, and per-page data-loader tests.
 
@@ -70,7 +70,7 @@ This document declares the use of AI tooling during the development of DineIQ An
 
 **Files/modules affected:** `README.md`, `documentation/`, project report, `AI_USAGE.md`
 
-**Review and verification:** I reviewed the figures and metrics quoted in the project report against the project's actual report outputs before including them.
+**Review and verification:** We reviewed the figures and metrics quoted in the project report against the project's actual report outputs before including them.
 
 **Testing completed:** N/A (documentation and packaging)
 
@@ -80,4 +80,4 @@ This document declares the use of AI tooling during the development of DineIQ An
 
 The selected development stages documented above were implemented with AI assistance using Claude Code. AI performed the implementation work for menu profitability analysis and performance classification, the independent Python pipeline and dual-pipeline comparison, demand forecasting, the web application and dashboards, and final project packaging/documentation.
 
-The final restaurant analytics, predictions, classifications, recommendations, and forecasts are produced by the project's own Spark, Python, Data Science, and Machine Learning code. No external generative-AI decision API is called at runtime by the application. AI assistance was used during development, as described above, and the resulting work was reviewed, tested, and verified by me.
+The final restaurant analytics, predictions, classifications, recommendations, and forecasts are produced by the project's own Spark, Python, Data Science, and Machine Learning code. No external generative-AI decision API is called at runtime by the application. AI assistance was used during development, as described above, and the resulting work was reviewed, tested, and verified by us.
