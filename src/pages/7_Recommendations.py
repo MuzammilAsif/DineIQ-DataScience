@@ -3,7 +3,7 @@ import streamlit as st
 import data_loader as dl
 import ui
 
-PRIORITIES = ["Critical", "High", "Medium", "Low"]
+PRIORITIES = ui.PRIORITIES
 
 user, f = ui.page("Recommendations")
 with ui.guard("Could not load recommendations."):
@@ -39,9 +39,9 @@ st.caption("Menu category and performance class filters apply to item recommenda
            "location filter to location recommendations.")
 
 counts = view.priority.value_counts()
-c = st.columns(4)
-for i, p in enumerate(PRIORITIES):
-    c[i].metric(p, int(counts.get(p, 0)))
+ui.kpis([(p, int(counts.get(p, 0)), None, "accent" if p == "Critical" else None)
+         for p in PRIORITIES])
+ui.source("parquet_data/recommendations", recs.as_of_date.iloc[0])
 if view.empty:
     st.warning("No recommendations match the current filters.")
     st.stop()
@@ -52,10 +52,9 @@ ui.takeaway(f"{len(view)} recommendations shown. The most common type is "
 export = view.assign(evidence=view.evidence.map(lambda e: " | ".join(e)))
 ui.download_df(export, "recommendations")
 
-limit = st.number_input("Show", min_value=1, max_value=len(view), value=min(30, len(view)), step=10)
+limit = st.number_input("Show", min_value=1, max_value=len(view), value=min(12, len(view)), step=10)
 for r in view.head(int(limit)).itertuples():
-    with st.container(border=True):
-        st.markdown(f"**{r.recommendation_id} · {r.priority}** · {r.type}")
-        st.markdown(f"**Recommended Action:** {r.action}")
-        st.markdown("**Reason:**\n" + "\n".join(f"- {e}" for e in r.evidence))
-        st.caption(f"Estimated impact {r.estimated_impact_value:,.0f} ({r.impact_basis})")
+    ui.card(r.priority, r.action,
+            f"{r.target_type.title()}: {r.target_name} · estimated impact "
+            f"{r.estimated_impact_value:,.0f} ({r.impact_basis})",
+            r.evidence, f"{r.recommendation_id} · {r.type}")

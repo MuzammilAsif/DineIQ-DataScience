@@ -75,17 +75,22 @@ def fmt(v, kind):
     return ui.money(v) if kind == "money" else f"{v:.1%}" if kind == "pct" else f"{v:,.0f}"
 
 
-cols = st.columns(4)
-for i, (k, label, kind) in enumerate(METRICS[:4] + METRICS[5:6] + METRICS[6:]):
+tiles = []
+for k, label, kind in METRICS[:4] + METRICS[5:6] + METRICS[6:]:
     delta = r["change"][k]
     shown = ui.money_short(r["simulated"][k]) if kind == "money" else fmt(r["simulated"][k], kind)
-    cols[i % 4].metric(label, shown,
-                       (f"{delta:+.1%}" if kind == "pct" else f"{delta:+,.0f}"))
+    text = f"{delta:+.1%}" if kind == "pct" else f"{delta:+,.0f}"
+    # Lower wastage cost is the good direction.
+    tiles.append((label, shown, *ui.signed(-delta if k == "wastage_cost" else delta, text)))
+ui.kpis(tiles[:3])
+st.write("")
+ui.kpis(tiles[3:])
 table = pd.DataFrame([{"metric": label, "baseline": fmt(r["baseline"][k], kind),
                        "simulated": fmt(r["simulated"][k], kind),
                        "change": (f"{r['change'][k]:+.1%}" if kind == "pct"
                                   else f"{r['change'][k]:+,.0f}")} for k, label, kind in METRICS])
 st.dataframe(table, hide_index=True, width="stretch")
+ui.source("python_pipeline/what_if_simulator.py")
 
 for flag in r["flags"]:
     st.error(flag)

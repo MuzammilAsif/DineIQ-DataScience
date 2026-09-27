@@ -95,3 +95,15 @@ def test_loaders_return_expected_columns(page, loader, columns):
     df = loader()
     assert len(df) > 0
     assert set(columns) <= set(df.columns)
+
+
+def test_anomaly_severity_follows_z_score():
+    import ui
+    assert [ui.severity("item_sales_z", z) for z in (3.1, -4.6, 6.0)] == ["Medium", "High", "Critical"]
+    assert ui.severity("high_order_value", 9.0) == "Review"
+
+
+def test_anomalies_page_renders_cards():
+    at = _run_page("10_Anomalies.py", "analyst")
+    assert not at.exception and not at.error
+    assert any("dq-card" in m.value for m in at.markdown)

@@ -4,7 +4,7 @@ import streamlit as st
 import data_loader as dl
 import ui
 
-user, f = ui.page("Customer Dashboard")
+user, f = ui.page("Customer Intelligence")
 st.caption(f"Customer segments as of {dl.as_of()} (Step 6 KMeans, module 07). The location "
            "filter uses each customer's home location; the date filter does not apply.")
 
@@ -17,12 +17,13 @@ if seg.empty:
     st.warning("No customers match the current filters.")
     st.stop()
 
-c = st.columns(4)
-c[0].metric("Customers", f"{len(seg):,}")
-c[1].metric("Total spend", ui.money_short(seg.customer_monetary_value.sum()))
-c[2].metric("Churn-risk flagged", f"{seg.churn_risk.fillna(False).sum():,}",
-            f"{seg.churn_risk.fillna(False).mean():.1%}", delta_color="off")
-c[3].metric("Loyalty members", f"{seg.loyalty_member.mean():.0%}")
+ui.kpis([("Customers", f"{len(seg):,}"),
+         ("Total spend", ui.money_short(seg.customer_monetary_value.sum()), None, "accent"),
+         ("Churn-risk flagged", f"{seg.churn_risk.fillna(False).sum():,}",
+          f"{seg.churn_risk.fillna(False).mean():.1%} of customers"),
+         ("Loyalty members", f"{seg.loyalty_member.mean():.0%}")])
+SRC = "parquet_data/customer_segments"
+ui.source(SRC)
 
 st.subheader("Segment breakdown")
 summary = (seg.groupby("segment", as_index=False)
@@ -35,13 +36,15 @@ summary = (seg.groupby("segment", as_index=False)
            .sort_values("total_spend", ascending=False))
 summary["spend_share"] = summary.total_spend / summary.total_spend.sum()
 left, right = st.columns(2)
-ui.chart(container=left, fig=px.bar(summary, x="segment", y="customers", labels={"segment": ""}),
-                  width="stretch")
-ui.chart(container=right, fig=px.pie(summary, names="segment", values="total_spend", hole=0.4,
-                          title="Share of spend"), width="stretch")
+left.markdown("**Customers per segment**")
+ui.chart(ui.hbar(summary, "customers", "segment", "Customers"), container=left)
+right.markdown("**Share of total spend**")
+ui.chart(ui.hbar(summary, "spend_share", "segment", "Share of spend", color=ui.INK, fmt=".1%")
+         .update_xaxes(tickformat=".0%"), container=right)
 st.dataframe(summary, hide_index=True, width="stretch",
              column_config={c: st.column_config.NumberColumn(format="percent")
                             for c in ["promo_share", "churn_risk_share", "spend_share"]})
+ui.source(SRC)
 ui.download_df(summary, "segment_summary")
 top = summary.iloc[0]
 cust_share = top.customers / summary.customers.sum()
@@ -52,9 +55,11 @@ ui.takeaway(f"{top.segment} customers are {cust_share:.0%} of the base but bring
             f"({summary.churn_risk_share.max():.0%}).")
 
 st.subheader("RFM score distribution")
-ui.chart(px.histogram(seg, x="rfm_score", color="segment", nbins=13,
-                             labels={"rfm_score": "RFM score (3 = weakest, 15 = strongest)"}),
-                width="stretch")
+fig = px.histogram(seg, x="rfm_score", color="segment", nbins=13,
+                   category_orders={"segment": summary.segment.tolist()},
+                   labels={"rfm_score": "RFM score (3 = weakest, 15 = strongest)", "segment": ""})
+fig.update_layout(yaxis_title="Customers", bargap=0.08)
+ui.chart(fig, source_path=SRC)
 ui.takeaway(f"Median RFM score {seg.rfm_score.median():.0f}; {(seg.rfm_score >= 13).mean():.0%} "
             f"of customers score 13 or more, and {(seg.rfm_score <= 5).mean():.0%} score 5 or less.")
 

@@ -11,8 +11,8 @@ from playwright.sync_api import sync_playwright
 
 OUT = Path(__file__).resolve().parent
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8599"
-PAGES = ["Executive Dashboard", "Menu Dashboard", "Customer Dashboard", "Wastage Dashboard",
-         "Forecast Dashboard", "DualPipeline Dashboard", "Recommendations", "WhatIf Simulator",
+PAGES = ["Executive Dashboard", "Menu Intelligence", "Customer Intelligence", "Demand Forecast",
+         "Wastage", "Anomalies", "Recommendations", "What-If Simulator", "Model Comparison",
          "Admin"]
 
 
@@ -61,11 +61,10 @@ def main():
         page.get_by_role("textbox", name="Password").fill("Admin@123")
         page.get_by_role("button", name="Sign in").click()
         settle(page)
-        shoot(page, "00_home")
         for i, name in enumerate(PAGES, 1):
             page.locator('[data-testid="stSidebarNav"]').get_by_text(name, exact=True).click()
             settle(page)
-            shoot(page, f"{i:02d}_{name.lower().replace(' ', '_')}")
+            shoot(page, f"{i:02d}_{name.lower().replace(' ', '_').replace('-', '')}")
         browser.close()
 
 

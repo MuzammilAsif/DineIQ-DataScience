@@ -1,9 +1,14 @@
 [theme]
 primaryColor = "#C8102E"
-backgroundColor = "#FFFFFF"
-secondaryBackgroundColor = "#F5F5F5"
+backgroundColor = "#FAFAFA"
+secondaryBackgroundColor = "#F2F2F2"
 textColor = "#1A1A1A"
 font = "sans serif"
+borderColor = "#E5E5E5"
+baseRadius = "6px"
+
+[theme.sidebar]
+backgroundColor = "#FFFFFF"
 
 [client]
 showErrorDetails = false

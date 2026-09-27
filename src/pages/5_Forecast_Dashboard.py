@@ -6,7 +6,7 @@ import streamlit as st
 import data_loader as dl
 import ui
 
-user, f = ui.page("Forecast Dashboard")
+user, f = ui.page("Demand Forecast")
 
 with ui.guard("Could not load forecast outputs."):
     meta = dl.forecast_meta()
@@ -46,12 +46,17 @@ fc = fc.sort_values("target_date")
 
 st.subheader("History and forecast")
 fig = go.Figure()
-fig.add_scatter(x=hist.date, y=hist.quantity, name="Actual (history)", line=dict(color="#7A7A7A"))
-fig.add_scatter(x=fc.target_date, y=fc.actual, name="Actual (test period)", line=dict(color="#1A1A1A"))
-fig.add_scatter(x=fc.target_date, y=fc.forecast, name="Model forecast", line=dict(color="#C8102E"))
-fig.add_scatter(x=fc.target_date, y=fc.baseline, name="Baseline", line=dict(color="#C8102E", dash="dot"))
-fig.update_layout(yaxis_title="Units sold per day", legend=dict(orientation="h"))
-ui.chart(fig, width="stretch")
+hover = "%{x|%d %b %Y}: %{y:,.0f} units"
+fig.add_scatter(x=hist.date, y=hist.quantity, name="Actual (history)",
+                line=dict(color=ui.LIGHT_GRAY, width=1.5), hovertemplate=hover)
+fig.add_scatter(x=fc.target_date, y=fc.actual, name="Actual (test period)",
+                line=dict(color=ui.INK, width=2), hovertemplate=hover)
+fig.add_scatter(x=fc.target_date, y=fc.forecast, name="Model forecast",
+                line=dict(color=ui.RED, width=2), hovertemplate=hover)
+fig.add_scatter(x=fc.target_date, y=fc.baseline, name="Baseline (same weekday last week)",
+                line=dict(color=ui.GRAY, width=1.5, dash="dot"), hovertemplate=hover)
+fig.update_layout(xaxis_title="Date", yaxis_title="Units sold per day", hovermode="x unified")
+ui.chart(fig, source_path=f"parquet_data/demand_forecast/{table}")
 
 
 def errs(pred):
@@ -62,10 +67,13 @@ def errs(pred):
 
 
 m, b = errs("forecast"), errs("baseline")
-c = st.columns(3)
-for i, k in enumerate(["MAE", "RMSE", "MAPE"]):
+tiles = []
+for k in ["MAE", "RMSE", "MAPE"]:
     fmt = "{:.1%}" if k == "MAPE" else "{:,.2f}"
-    c[i].metric(f"{k} (model)", fmt.format(m[k]), f"baseline {fmt.format(b[k])}", delta_color="off")
+    tone = "pos" if m[k] < b[k] else "neg" if m[k] > b[k] else None
+    tiles.append((f"{k} (model)", fmt.format(m[k]), f"baseline {fmt.format(b[k])}", tone))
+ui.kpis(tiles)
+st.caption("Green means the model error is lower than the baseline's, red means higher.")
 better = [k for k in m if m[k] < b[k]]
 ui.takeaway(f"For this {level.lower()} view the model beats the baseline on "
             f"{', '.join(better) if better else 'no metric'} over {len(fc)} test days. MAE is "
@@ -83,6 +91,7 @@ acc = pd.DataFrame(rows)
 st.dataframe(acc, hide_index=True, width="stretch",
              column_config={c: st.column_config.NumberColumn(format="percent")
                             for c in ["model_mape", "baseline_mape"]})
+ui.source(f"models/spark/demand_forecast/{meta['version']}/model_version.txt")
 ui.download_df(acc, "forecast_accuracy")
 base = acc.set_index("level").loc["item_location_day"]
 losses = [f"{k.upper()} at {r.level}" for r in acc.itertuples() for k in ("mae", "rmse", "mape")
@@ -94,12 +103,16 @@ ui.takeaway(f"At the item x location x day grain the model's MAE is {base.model_
                if losses else "The model beats the baseline on every metric at every level."))
 
 st.subheader("Actual vs predicted")
-fig = go.Figure(go.Scatter(x=fc.actual, y=fc.forecast, mode="markers", marker=dict(color="#C8102E")))
+fig = go.Figure(go.Scatter(x=fc.actual, y=fc.forecast, mode="markers", name="Test day",
+                           marker=dict(color=ui.RED, size=8, line=dict(width=1, color="#FFFFFF")),
+                           customdata=fc.target_date,
+                           hovertemplate="%{customdata|%d %b %Y}<br>Actual %{x:,.0f}, "
+                                         "forecast %{y:,.0f} units<extra></extra>"))
 top = float(max(fc.actual.max(), fc.forecast.max()))
-fig.add_scatter(x=[0, top], y=[0, top], mode="lines", line=dict(color="#7A7A7A", dash="dash"),
-                showlegend=False)
-fig.update_layout(xaxis_title="Actual", yaxis_title="Forecast", showlegend=False)
-ui.chart(fig, width="stretch")
+fig.add_scatter(x=[0, top], y=[0, top], mode="lines", name="Perfect forecast",
+                line=dict(color=ui.GRAY, dash="dash", width=1.5), hoverinfo="skip")
+fig.update_layout(xaxis_title="Actual units per day", yaxis_title="Forecast units per day")
+ui.chart(fig, source_path=f"parquet_data/demand_forecast/{table}")
 
 st.subheader("High-demand periods in the forecast window")
 with ui.guard("Could not load location forecasts."):
@@ -113,6 +126,7 @@ peaks = peaks.assign(target_date=peaks.target_date.dt.date)
 st.dataframe(peaks[["target_date", "location", "forecast", "recent_average", "vs_recent", "actual"]]
              .head(20), hide_index=True, width="stretch",
              column_config={"vs_recent": st.column_config.NumberColumn(format="percent")})
+ui.source("parquet_data/demand_forecast/location_day")
 if len(peaks):
     busiest = peaks.target_date.value_counts().index[0]
     ui.takeaway(f"{len(peaks)} location-days are forecast at least 25% above their recent level. "

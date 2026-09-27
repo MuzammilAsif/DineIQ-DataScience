@@ -4,7 +4,7 @@ import streamlit as st
 import data_loader as dl
 import ui
 
-user, f = ui.page("Menu Dashboard")
+user, f = ui.page("Menu Intelligence")
 st.caption(f"Menu classification snapshot as of {dl.as_of()}. The date filter does not apply.")
 
 with ui.guard("Could not load menu classification."):
@@ -24,18 +24,27 @@ if f["locations"]:
                "at the same location).")
 
 counts = view.category.value_counts().reindex(ui.CLASSES).dropna().astype(int)
-c = st.columns(len(counts) + 1)
-c[0].metric("Rows shown", f"{len(view):,}")
-for i, (k, v) in enumerate(counts.items(), 1):
-    c[i].metric(k, v)
+ui.kpis([("Rows shown", f"{len(view):,}")]
+        + [(k, v, f"{v / len(view):.0%} of rows", "accent" if k == "Profit Driver" else None)
+           for k, v in counts.items()])
+src = "parquet_data/menu_classification_by_location" if f["locations"] else "parquet_data/menu_classification"
+ui.source(src, dl.as_of())
 
 st.subheader("Performance map")
 fig = px.scatter(view, x="demand_percentile", y="profitability_percentile", color="category",
-                 hover_data=["item_name", "profit_percentage", "total_quantity_sold"],
-                 category_orders={"category": ui.CLASSES},
+                 hover_name="item_name", hover_data={"profit_percentage": ":.1f",
+                                                     "total_quantity_sold": ":,",
+                                                     "demand_percentile": ":.0%",
+                                                     "profitability_percentile": ":.0%"},
+                 category_orders={"category": ui.CLASSES}, color_discrete_map=ui.CLASS_COLORS,
                  labels={"demand_percentile": "Demand percentile",
-                         "profitability_percentile": "Profitability percentile"})
-ui.chart(fig, width="stretch")
+                         "profitability_percentile": "Profitability percentile",
+                         "profit_percentage": "Margin %", "total_quantity_sold": "Units sold",
+                         "category": ""})
+fig.update_traces(marker=dict(size=9, line=dict(width=1, color="#FFFFFF")))
+fig.update_xaxes(tickformat=".0%")
+fig.update_yaxes(tickformat=".0%")
+ui.chart(fig, source_path=src)
 
 low = view[view.category == "Low Performer"]
 if len(low):
@@ -64,14 +73,13 @@ st.dataframe(table, hide_index=True, width="stretch",
              column_config={"wastage_percentage": st.column_config.NumberColumn(format="percent"),
                             "repeat_purchase_rate": st.column_config.NumberColumn(format="percent"),
                             "contribution_margin": st.column_config.NumberColumn(format="%,.0f")})
+ui.source(src, dl.as_of())
 ui.download_df(table, "menu_performance")
 
 st.subheader("Margins by menu category")
 by_cat = (view.groupby("category_name", as_index=False)
           .agg(margin=("contribution_margin", "sum"), items=("item_id", "count")))
-ui.chart(px.bar(by_cat.sort_values("margin", ascending=False), x="category_name", y="margin",
-                       labels={"margin": "Contribution margin (PKR)", "category_name": ""}),
-                width="stretch")
+ui.chart(ui.hbar(by_cat, "margin", "category_name", "Contribution margin (PKR)"), source_path=src)
 best, worst = by_cat.loc[by_cat.margin.idxmax()], by_cat.loc[by_cat.margin.idxmin()]
 ui.takeaway(f"{best.category_name} contributes the most margin ({ui.money(best.margin)} from "
             f"{best['items']} rows); {worst.category_name} the least ({ui.money(worst.margin)}).")
@@ -93,6 +101,7 @@ if len(slow):
                 "These are the first candidates to replace.")
 else:
     st.caption("No slow-moving items match the filters.")
+ui.source("parquet_data/slow_moving")
 
 st.subheader("Ratings and wastage")
 worst_rated = view.dropna(subset=["average_rating"]).sort_values("average_rating").head(5)
@@ -103,3 +112,4 @@ st.dataframe(worst_rated[["item_name", "average_rating", "total_quantity_sold", 
 ui.takeaway(f"Lowest rated: {', '.join(f'{r.item_name} ({r.average_rating:.2f})' for r in worst_rated.itertuples())}. "
             f"The highest wastage share is {view.wastage_percentage.max():.1%} "
             f"({view.loc[view.wastage_percentage.idxmax(), 'item_name']}).")
+ui.source(src, dl.as_of())

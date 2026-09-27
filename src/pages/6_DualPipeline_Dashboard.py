@@ -1,11 +1,10 @@
-import plotly.express as px
 import streamlit as st
 
 import auth
 import data_loader as dl
 import ui
 
-user, f = ui.page("Dual-Pipeline Dashboard", auth.MANAGERS_AND_ANALYSTS)
+user, f = ui.page("Model Comparison", auth.MANAGERS_AND_ANALYSTS)
 st.caption("Spark (PySpark + MLlib) against the independent Python pipeline (pandas + "
            "scikit-learn) on unseen records. Source: reports/dual_pipeline_comparison.csv.")
 ui.applied(f, [])
@@ -19,11 +18,12 @@ if task != "All":
     d = d[d.record_type == task]
 
 match = (d.spark_result == d.python_result).mean()
-c = st.columns(4)
-c[0].metric("Records compared", f"{len(d):,}")
-c[1].metric("Spark vs Python agreement", f"{match:.1%}")
-c[2].metric("Spark vs Actual", f"{(d.spark_result == d.actual).mean():.1%}")
-c[3].metric("Python vs Actual", f"{(d.python_result == d.actual).mean():.1%}")
+SRC = "reports/dual_pipeline_comparison.csv"
+ui.kpis([("Records compared", f"{len(d):,}"),
+         ("Spark vs Python agreement", f"{match:.1%}", None, "accent"),
+         ("Spark vs Actual", f"{(d.spark_result == d.actual).mean():.1%}", "accuracy"),
+         ("Python vs Actual", f"{(d.python_result == d.actual).mean():.1%}", "accuracy")])
+ui.source(SRC)
 mism = d[d.spark_python_match == "Mismatch"]
 gap = abs((d.spark_result == d.actual).mean() - (d.python_result == d.actual).mean()) * 100
 ui.takeaway(f"The two pipelines agree on {match:.1%} of {len(d):,} records; {len(mism):,} "
@@ -35,8 +35,7 @@ left, right = st.columns(2)
 with left:
     st.subheader("Consistency status")
     status = d.final_consistency_status.value_counts().rename_axis("status").reset_index(name="records")
-    ui.chart(px.bar(status, x="records", y="status", orientation="h",
-                           labels={"status": ""}), width="stretch")
+    ui.chart(ui.hbar(status, "records", "status", "Records"))
 with right:
     st.subheader("Agreement by actual class")
     by = (d.assign(agree=d.spark_result == d.python_result,
@@ -54,6 +53,7 @@ ui.takeaway(f"The lowest agreement is on {worst.actual} ({worst.spark_vs_python:
 
 st.subheader("Disagreements")
 st.dataframe(mism, hide_index=True, width="stretch")
+ui.source(SRC)
 ui.download_df(mism, "pipeline_disagreements")
 
 st.subheader("All records")

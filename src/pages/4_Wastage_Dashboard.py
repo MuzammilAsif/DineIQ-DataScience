@@ -4,7 +4,7 @@ import streamlit as st
 import data_loader as dl
 import ui
 
-user, f = ui.page("Wastage Dashboard")
+user, f = ui.page("Wastage")
 
 with ui.guard("Could not load wastage data."):
     w = ui.filter_df(dl.wastage(), f, date_col="date", loc_col="location_id",
@@ -17,17 +17,20 @@ if w.empty:
     st.stop()
 
 cost, revenue = w.cost_of_waste.sum(), sales.revenue.sum()
-c = st.columns(4)
-c[0].metric("Wastage cost", ui.money_short(cost))
-c[1].metric("As share of sales", f"{cost / revenue:.1%}" if revenue else "n/a")
-c[2].metric("Wastage records", f"{len(w):,}")
-c[3].metric("Items affected", f"{w.item_id.nunique():,}")
+ui.kpis([("Wastage cost", ui.money_short(cost), None, "accent"),
+         ("As share of sales", f"{cost / revenue:.1%}" if revenue else "n/a"),
+         ("Wastage records", f"{len(w):,}"),
+         ("Items affected", f"{w.item_id.nunique():,}")])
+SRC = "parquet_data/wastage"
+ui.source(SRC)
 
 st.subheader("Weekly trend")
 weekly = w.set_index("date").resample("W").cost_of_waste.sum().reset_index()
-ui.chart(px.line(weekly, x="date", y="cost_of_waste",
-                        labels={"cost_of_waste": "Wastage cost (PKR)", "date": ""}),
-                width="stretch")
+fig = px.area(weekly, x="date", y="cost_of_waste",
+              labels={"cost_of_waste": "Wastage cost (PKR)", "date": "Week starting"})
+fig.update_traces(line=dict(color=ui.RED, width=2), fillcolor="rgba(200,16,46,0.08)",
+                  hovertemplate="Week of %{x|%d %b %Y}<br>PKR %{y:,.0f}<extra></extra>")
+ui.chart(fig, source_path=SRC)
 peak = weekly.loc[weekly.cost_of_waste.idxmax()]
 ui.takeaway(f"The worst week began {peak.date:%d %b} ({ui.money(peak.cost_of_waste)}), "
             f"{peak.cost_of_waste / weekly.cost_of_waste.median():.1f}x the median week.")
@@ -37,9 +40,7 @@ items = (w.groupby(["item_name", "category_name"], as_index=False).cost_of_waste
          .sort_values("cost_of_waste", ascending=False))
 with left:
     st.subheader("Highest-wastage items")
-    ui.chart(px.bar(items.head(10), x="cost_of_waste", y="item_name", orientation="h",
-                           labels={"cost_of_waste": "PKR", "item_name": ""}).update_yaxes(
-        autorange="reversed"), width="stretch")
+    ui.chart(ui.hbar(items, "cost_of_waste", "item_name", "Wastage cost (PKR)", top=10))
     top3 = items.head(3).cost_of_waste.sum() / cost
     ui.takeaway(f"The top 3 items ({', '.join(items.head(3).item_name)}) account for {top3:.0%} "
                 "of wastage cost.")
@@ -62,8 +63,8 @@ with right:
 st.subheader("Reasons")
 reasons = w.groupby("reason", as_index=False).cost_of_waste.sum().sort_values("cost_of_waste",
                                                                               ascending=False)
-ui.chart(px.bar(reasons, x="reason", y="cost_of_waste",
-                       labels={"cost_of_waste": "PKR", "reason": ""}), width="stretch")
+ui.chart(ui.hbar(reasons, "cost_of_waste", "reason", "Wastage cost (PKR)", color=ui.INK),
+         source_path=SRC)
 top_reason = reasons.iloc[0].reason
 cause = {"Overproduction": "preparation planning", "PrepError": "kitchen process",
          "Spoilage": "storage", "Expired": "stock rotation",
@@ -82,16 +83,15 @@ if r.empty:
 else:
     flagged = r[r.predicted_risk == 1]
     hit = (flagged.high_wastage_risk == 1).mean() if len(flagged) else 0
-    c = st.columns(3)
-    c[0].metric("Item-days predicted high risk", f"{len(flagged):,}", f"of {len(r):,}",
-                delta_color="off")
-    c[1].metric("Of those, actually high wastage", f"{hit:.0%}")
-    c[2].metric("High-wastage days caught",
-                f"{(r[r.high_wastage_risk == 1].predicted_risk == 1).mean():.0%}")
+    ui.kpis([("Item-days predicted high risk", f"{len(flagged):,}", f"of {len(r):,}"),
+             ("Of those, actually high wastage", f"{hit:.0%}", "precision"),
+             ("High-wastage days caught",
+              f"{(r[r.high_wastage_risk == 1].predicted_risk == 1).mean():.0%}", "recall")])
     pairs = (r.groupby(["item_name", "location_id"], as_index=False)
              .agg(avg_risk=("risk_probability", "mean"), predicted_days=("predicted_risk", "sum"))
              .sort_values("avg_risk", ascending=False))
     st.dataframe(pairs.head(15), hide_index=True, width="stretch")
+    ui.source("parquet_data/wastage_risk")
     ui.download_df(pairs, "wastage_risk_pairs")
     ui.takeaway(f"The model flags {len(flagged):,} item-days as high risk. {hit:.0%} of those "
                 "really wasted more than 10% of the day's preparation, against a "
