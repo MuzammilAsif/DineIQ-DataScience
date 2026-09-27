@@ -486,3 +486,57 @@ The model beats the baseline on MAE and RMSE at every level.
 **Known limitations:**
 - The first load of the Executive Dashboard takes ~10 s, because it reads the 1M-line fact table to compute order margins. After that it is cached and pages load in 1-3 s.
 - The home page appears as "app" in the sidebar navigation (Streamlit's name for the entry script).
+
+## Step 10b — Frontend visual polish (2026-09-27)
+
+Restyle only; no analytical change.
+
+**Built:**
+- `src/style.css`, loaded by `ui.css()` on every page: KPI tiles, priority badges, recommendation/anomaly cards, source footers, active nav item in red, white bordered cards on a #FAFAFA page. All CSS transitions are off.
+- `.streamlit/config.toml`: page background #FAFAFA, border #E5E5E5, white sidebar. Red stays #C8102E.
+- `src/app.py` now uses `st.navigation` with grouped sections. Pages a role cannot open are left out of its menu (the pages still check access themselves). Before login, only the sign-in page exists. The home page is gone; after login the app opens on the Executive Dashboard.
+  - Overview: Executive Dashboard
+  - Intelligence: Menu Intelligence, Customer Intelligence, Demand Forecast, Wastage
+  - Decisions & Actions: Anomalies, Recommendations, What-If Simulator
+  - Platform: Model Comparison (dual pipeline), Admin
+- Filters moved from the sidebar to a bar at the top of each page (`ui.filter_bar`). The logic and persistence are unchanged. The sidebar keeps the user, the data period and Log out.
+- `ui.kpis`, `ui.badge`, `ui.card`, `ui.hbar`, `ui.source`, `ui.anomaly_card` replace `st.metric` and plain lists on every page.
+- New page `src/pages/10_Anomalies.py`: the anomaly flags from `spark_jobs/12_anomaly_detection.py` as severity counts, a weekly trend, and cards.
+- Charts: white card, light grid, legend above the plot, axis titles with units, and hover templates with exact values. Rankings are horizontal bars. The customer pie became a bar of spend share, and the wastage trend is an area chart.
+- Categorical palette is red, blue, amber, teal, purple, pink in that fixed order. It passes the colour-blind separation check for adjacent pairs. Gray is kept for baselines and "Insufficient History".
+- Every section has a footer naming its source file and the file's last-modified time, plus the as_of_date where there is one.
+- `screenshots/`: all pages retaken. The files are renamed to the new page names, and the old home page shot was removed.
+- `tests/test_app.py`: 21 tests (added anomaly severity and an Anomalies page render).
+
+**Decisions:**
+- **Anomaly severity** is not in the data, so it comes from the z-score using a fixed rule. Every flag already has |z| >= 3 (config `anomaly.z_threshold`). Critical is |z| >= 6, High >= 4.5, Medium below that. High-value orders (a multiple of the IQR cutoff) and identical-rating weeks (a rating count) have no z-score and are labelled "Review", not given a priority. The rule is printed on the Anomalies page.
+- Recommendations keep Step 9's own priority.
+- **Not built:** Basket & Bundles, Pricing & Promotions and Reports & Export pages (the report download stays on the Executive Dashboard), a channel filter, and food images. These were left out because the first two pages and the channel filter would be new analysis, not restyling. Images would need a manual download and licence check.
+
+## Step 11 — Packaging and submission (2026-09-27)
+
+**Built:**
+- `README.md`: requirements (OS, Python, Java, Spark, PySpark config), install, database setup, run commands for every stage (generation, Spark, Spark SQL, analytics, forecast, Python pipeline, comparison, recommendations), an app task guide, tests, troubleshooting, the repository layout, and evaluator credentials at the top.
+- `requirements.txt`: every package is pinned to the version the tests passed with.
+- `LICENSE`: MIT.
+- `documentation/diagrams.md`: Mermaid diagrams.
+  - architecture
+  - ERD of all 13 tables with PKs and FKs
+  - DFD level 0 and level 1
+  - use cases for the four roles
+  - activity diagram of a what-if run
+  - sequence diagram of login, dashboard load and filtering
+- `documentation/project_report.md`: background, scope, architecture, methodology per subsystem, results (every number from `reports/`), testing, security, limitations and future work.
+- `documentation/technical_blog.md` (about 3,500 words).
+- `documentation/demo_video_script.md`: a shot list covering every required demo item, plus the contradictory case.
+- `CONTRIBUTIONS.md`: a template for the team to fill in.
+- `sample_data/`: the first 200 rows of each raw table.
+- `static/` and `templates/`: placeholder READMEs.
+- `tests/test_analytics.py`: 2 new tests for SRS difficult cases that had no direct test.
+  - `test_price_sensitive_item_classes`: price-sensitivity classes, including Inconclusive and Not Evaluated.
+  - `test_rating_anomaly_flags_rating_drop_and_identical_week`: an average-rating drop and an identical-rating week.
+- `reports/test_results.txt`: output of the last full run.
+
+**On hold:** `AI_USAGE.md`, waiting on the team's discussion with faculty.
+
+**Not done here:** the demo video (to be recorded by the team from the script), deployment (no hosted URL; the README's local instructions are the fallback), and the team contribution record.

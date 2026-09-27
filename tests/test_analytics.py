@@ -156,6 +156,23 @@ def test_elasticity_before_after_with_category_control(spark):
     assert not pi.event_impact(small, daily, D(2025, 1, 1), D(2025, 12, 31), cfg).first().evaluable
 
 
+
+def test_price_sensitive_item_classes(spark):
+    """Most negative elasticity is Highly sensitive, positive is Inconclusive, no change is Not Evaluated."""
+    rows = [(f"I{i}", 0.2, -0.2 * i, True) for i in range(1, 10)]
+    rows += [("UP", 0.2, 0.5, True), ("SMALL", 0.02, None, False)]
+    events = spark.createDataFrame(rows, "item_id string, price_change_pct double, "
+                                   "elasticity double, evaluable boolean")
+    items = spark.createDataFrame([(r[0],) for r in rows] + [("NONE",)], "item_id string")
+    out = {r.item_id: r.price_sensitivity
+           for r in pi.classify_items(events, items, CFG["price"]).collect()}
+    assert out["I9"] == "Highly Price Sensitive"
+    assert out["I1"] == "Low Price Sensitivity"
+    assert out["I5"] == "Moderately Price Sensitive"
+    assert out["UP"] == "Inconclusive"
+    assert out["SMALL"] == out["NONE"] == "Not Evaluated"
+
+
 # --- 11 promotions ---
 
 def test_promotion_trap_flags(spark):
@@ -195,6 +212,22 @@ def test_rolling_z_flags_spike_only(spark):
     out = an.rolling_z(df, ["location_id"], "d", ["daily_orders"], -7, -1, 4, 3.0, "t").collect()
     assert [r.period_start.day for r in out] == [9]
     assert out[0].score > 3
+
+
+
+def test_rating_anomaly_flags_rating_drop_and_identical_week(spark):
+    avg = [4.0, 4.1, 3.9, 4.0, 4.1, 3.9, 4.0, 1.5]
+    rows = [("I1", D(2025, 1, 6) + dt.timedelta(weeks=i), 12, a, 0.4, 4, i) for i, a in enumerate(avg)]
+    rows.append(("I2", D(2025, 1, 6), 12, 4.0, 0.9, 4, 0))
+    weeks = spark.createDataFrame(rows, "item_id string, period_start date, rating_count long, "
+                                  "avg_rating double, identical_share double, top_value int, "
+                                  "week_num int")
+    out = an.rating_anomalies(weeks, CFG["anomaly"]).collect()
+    drops = [r for r in out if r.anomaly_type == "rating_z" and r.metric == "avg_rating"]
+    assert [(r.entity_id, r.period_start) for r in drops] == [("I1", D(2025, 2, 24))]
+    assert drops[0].score < -3
+    same = [r for r in out if r.anomaly_type == "identical_ratings"]
+    assert [(r.entity_id, r.metric) for r in same] == [("I2", "share_of_rating_4")]
 
 
 # --- 13 slow-moving ---
