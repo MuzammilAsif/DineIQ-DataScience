@@ -529,7 +529,6 @@ Restyle only; no analytical change.
 - `documentation/project_report.md`: background, scope, architecture, methodology per subsystem, results (every number from `reports/`), testing, security, limitations and future work.
 - `documentation/technical_blog.md` (about 3,500 words).
 - `documentation/demo_video_script.md`: a shot list covering every required demo item, plus the contradictory case.
-- `CONTRIBUTIONS.md`: a template for the team to fill in.
 - `sample_data/`: the first 200 rows of each raw table.
 - `static/` and `templates/`: placeholder READMEs.
 - `tests/test_analytics.py`: 2 new tests for SRS difficult cases that had no direct test.
@@ -537,6 +536,6 @@ Restyle only; no analytical change.
   - `test_rating_anomaly_flags_rating_drop_and_identical_week`: an average-rating drop and an identical-rating week.
 - `reports/test_results.txt`: output of the last full run.
 
-**On hold:** `AI_USAGE.md`, waiting on the team's discussion with faculty.
+**On hold:** `AI_USAGE.md`, waiting on confirmation from faculty.
 
-**Not done here:** the demo video (to be recorded by the team from the script), deployment (no hosted URL; the README's local instructions are the fallback), and the team contribution record.
+**Not done here:** the demo video (to be recorded from the script), deployment (no hosted URL; the README's local instructions are the fallback).

@@ -2,8 +2,6 @@
 
 This document declares the use of AI tooling during the development of DineIQ Analytics, in accordance with the competition's integrity requirements.
 
-**Team member:** Muzammil Mughal (sole developer)
-
 **Tool used:** Claude (Anthropic's Claude Code CLI), used as the primary AI development environment for the project.
 
 **How it was used, overall:** AI was used to implement, test, debug, and refine the selected development stages described below. The AI performed the implementation work for these stages based on the project's requirements and specifications. The resulting work was reviewed, run, and verified by me before being considered complete.
