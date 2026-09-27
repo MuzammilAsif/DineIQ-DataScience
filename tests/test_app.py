@@ -107,3 +107,22 @@ def test_anomalies_page_renders_cards():
     at = _run_page("10_Anomalies.py", "analyst")
     assert not at.exception and not at.error
     assert any("dq-card" in m.value for m in at.markdown)
+
+
+def test_ensure_creates_missing_database(tmp_path):
+    path = tmp_path / "app.db"
+    assert not init_db.is_ready(path)
+    assert init_db.ensure(path) is True
+    assert init_db.is_ready(path)
+    assert auth.login({}, "admin", "Admin@123", path)
+    with sqlite3.connect(path) as c:
+        assert c.execute("SELECT COUNT(*) FROM restaurants").fetchone()[0] > 0
+    assert init_db.ensure(path) is False
+
+
+def test_ensure_repairs_empty_database_file(tmp_path):
+    path = tmp_path / "app.db"
+    path.touch()
+    assert not init_db.is_ready(path)
+    assert init_db.ensure(path) is True
+    assert init_db.is_ready(path)

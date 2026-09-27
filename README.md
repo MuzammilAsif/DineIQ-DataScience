@@ -71,6 +71,8 @@ If `python3 -m venv` fails with "ensurepip is not available", install the venv p
 
 ### Database setup
 
+The app creates and seeds `database/app.db` automatically on first start if it is missing or incomplete (for example on a fresh clone or on Streamlit Community Cloud). To create it by hand instead:
+
 ```bash
 .venv/bin/python database/init_db.py
 ```
@@ -257,7 +259,7 @@ Playwright isn't in `requirements.txt`, because only the screenshot script needs
 | `ConnectException: ... localhost:9000` | A global Hadoop config points at HDFS. `get_spark()` already forces `file:///`; if you build your own session, set `spark.hadoop.fs.defaultFS=file:///` |
 | Spark job or test run dies, or the machine freezes | Out of memory. On 8 GB, don't run the Spark tests while Streamlit and a headless browser are also running. Lower `spark.driver.memory` in `spark_utils.py` if needed |
 | `FutureWarning: PySpark does not yet fully support pandas >= 3.0.0` | Harmless; all tests pass with pandas 3.0.6 |
-| "Login is unavailable: the user database could not be read" | Run `.venv/bin/python database/init_db.py` |
+| "Login is unavailable: the user database could not be read" | Restart the app so it recreates the database, or run `.venv/bin/python database/init_db.py` |
 | Port 8501 in use | `streamlit run src/app.py --server.port 8502` |
 | Executive Dashboard slow on first load | Expected (~10 s); it reads the full order table once, then caches |
 | A page says "No ... match the current filters" | Clear the filters in the top bar; menu and customer pages are snapshots and ignore the date range |

@@ -1,10 +1,25 @@
 """DineIQ Analytics web app. Run from the project root: .venv/bin/streamlit run src/app.py"""
+import sys
+from pathlib import Path
+
 import streamlit as st
 
 import auth
 import ui
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "database"))
+import init_db  # noqa: E402
+
 st.set_page_config(page_title="DineIQ Analytics", layout="wide")
+
+
+@st.cache_resource(show_spinner="Setting up the user database...")
+def ensure_database():
+    """Creates and seeds database/app.db on a fresh clone (e.g. Streamlit Cloud)."""
+    init_db.ensure()
+
+
+ensure_database()
 
 
 def login():

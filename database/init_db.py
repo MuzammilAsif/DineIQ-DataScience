@@ -4,6 +4,7 @@ Restaurants and Menu_Items master data from processed_data/.
 Run: .venv/bin/python database/init_db.py
 """
 import csv
+import sqlite3
 import sys
 from pathlib import Path
 
@@ -46,6 +47,32 @@ def init(path=None, seed_master=True):
                     db.upsert_master("menu_items", {**r, "is_active": _bool(r["is_active"]),
                                                     "is_seasonal": _bool(r["is_seasonal"])}, path)
     return path
+
+
+REQUIRED_TABLES = {"users", "audit_log", "restaurants", "menu_items"}
+
+
+def is_ready(path=None):
+    """True if the database exists, has every required table and at least one user."""
+    path = Path(path or db.DB_PATH)
+    if not path.exists():
+        return False
+    try:
+        with db.connect(path) as c:
+            tables = {r[0] for r in c.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+            if not REQUIRED_TABLES <= tables:
+                return False
+            return c.execute("SELECT COUNT(*) FROM users").fetchone()[0] > 0
+    except sqlite3.DatabaseError:
+        return False
+
+
+def ensure(path=None):
+    """Initialises the database if it is missing or incomplete. Returns True if it ran init."""
+    if is_ready(path):
+        return False
+    init(path)
+    return True
 
 
 if __name__ == "__main__":
